@@ -1,0 +1,341 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all (Pillar 4.1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'jairai2006@gmail.com' ||
+        exists(/databases/$(database)/documents/super_admins/$(request.auth.uid))
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isMember(orgId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/organizations/$(orgId)/memberships/$(request.auth.uid));
+    }
+
+    function getMemberRole(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/memberships/$(request.auth.uid)).data.role;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isSuperAdmin() || (isMember(orgId) && getMemberRole(orgId) == 'org_admin');
+    }
+
+    // Entity Validation Helpers
+    function isValidOrganization(data) {
+      return data.keys().hasAll(['id', 'name', 'slug', 'createdBy', 'createdAt', 'plan']) &&
+        data.keys().hasOnly(['id', 'name', 'slug', 'createdBy', 'createdAt', 'plan']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 100 &&
+        data.createdBy is string && data.createdBy.size() <= 128 &&
+        data.plan in ['starter', 'professional', 'enterprise'];
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['id', 'email', 'organizationId', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'email', 'displayName', 'photoURL', 'organizationId', 'role', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.email is string && data.email.size() <= 255 &&
+        data.organizationId is string && data.organizationId.size() <= 128 &&
+        data.role in ['super_admin', 'org_admin', 'reviewer', 'creator'];
+    }
+
+    function isValidMembership(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'userId', 'userEmail', 'role', 'joinedAt']) &&
+        data.keys().hasOnly(['id', 'organizationId', 'userId', 'userEmail', 'role', 'joinedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        isValidId(data.userId) &&
+        data.userEmail is string && data.userEmail.size() <= 255 &&
+        data.role in ['super_admin', 'org_admin', 'reviewer', 'creator'];
+    }
+
+    function isValidGuideline(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'filename', 'fileType', 'version', 'uploadedBy', 'uploadedAt', 'status']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        data.filename is string && data.filename.size() <= 255 &&
+        data.fileType in ['pdf', 'docx'] &&
+        data.version is number &&
+        data.status in ['processing', 'completed', 'error'];
+    }
+
+    function isValidConstitutionRule(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'title', 'category', 'ruleText', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.ruleText is string && data.ruleText.size() <= 4000 &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        data.category in [
+          'tone', 'messaging', 'terminology', 'grammar',
+          'visual identity', 'colour', 'logo', 'typography',
+          'disclaimers', 'prohibited statements'
+        ];
+    }
+
+    function isValidClaim(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'claim', 'approvalDate', 'expiryDate', 'owner', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        data.claim is string && data.claim.size() >= 3 && data.claim.size() <= 1000 &&
+        data.owner is string && data.owner.size() <= 100 &&
+        data.status in ['active', 'expired'];
+    }
+
+    function isValidAnalysis(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'authorId', 'title', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        isValidId(data.authorId) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.status in ['draft', 'flagged', 'pending_review', 'approved', 'rejected'];
+    }
+
+    function isValidApprovalRequest(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'title', 'content', 'authorId', 'riskLevel', 'brandScore', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        isValidId(data.authorId) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.content is string && data.content.size() <= 25000 &&
+        data.riskLevel in ['low', 'medium', 'high', 'critical'] &&
+        data.status in ['pending', 'approved', 'rejected', 'changes_requested'];
+    }
+
+    function isValidApprovalAction(data) {
+      return data.keys().hasAll(['id', 'approvalId', 'organizationId', 'actorId', 'action', 'timestamp']) &&
+        isValidId(data.id) &&
+        isValidId(data.approvalId) &&
+        isValidId(data.organizationId) &&
+        isValidId(data.actorId) &&
+        data.action in ['submitted', 'approved', 'rejected', 'requested_changes', 'commented'];
+    }
+
+    function isValidAuditLogEntry(data) {
+      return data.keys().hasAll(['id', 'organizationId', 'entityType', 'entityId', 'action', 'actorId', 'timestamp']) &&
+        isValidId(data.id) &&
+        isValidId(data.organizationId) &&
+        isValidId(data.entityId) &&
+        data.entityType in ['approval', 'guideline', 'claim', 'rule', 'content'] &&
+        data.action is string && data.action.size() <= 100;
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSignedIn() && (resource.data.id == request.auth.uid || isSuperAdmin());
+      
+      allow create: if isSignedIn() && 
+        isValidId(userId) && 
+        request.auth.uid == userId && 
+        isValidUserProfile(incoming()) && 
+        incoming().id == userId &&
+        (incoming().role in ['org_admin', 'creator', 'reviewer']);
+
+      allow update: if isSignedIn() && (
+        isSuperAdmin() || (
+          request.auth.uid == userId && 
+          isValidUserProfile(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().email == existing().email &&
+          incoming().role == existing().role
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // Organizations Root & Subcollections
+    match /organizations/{organizationId} {
+      allow get: if isSignedIn() && (isMember(organizationId) || isSuperAdmin());
+      allow list: if isSignedIn() && (
+        isSuperAdmin() || 
+        exists(/databases/$(database)/documents/organizations/$(organizationId)/memberships/$(request.auth.uid))
+      );
+
+      allow create: if isSignedIn() && 
+        isValidId(organizationId) && 
+        isValidOrganization(incoming()) && 
+        incoming().id == organizationId &&
+        incoming().createdBy == request.auth.uid;
+
+      allow update: if isSignedIn() && (
+        isSuperAdmin() || (
+          isOrgAdmin(organizationId) && 
+          isValidOrganization(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().createdBy == existing().createdBy &&
+          incoming().createdAt == existing().createdAt
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+
+      // Memberships
+      match /memberships/{membershipId} {
+        allow get: if isMember(organizationId) || isSuperAdmin();
+        allow list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isSignedIn() && 
+          isValidId(membershipId) && 
+          isValidMembership(incoming()) && 
+          incoming().organizationId == organizationId && (
+            isOrgAdmin(organizationId) || 
+            (incoming().userId == request.auth.uid && incoming().id == request.auth.uid)
+          );
+
+        allow update: if isSignedIn() && (
+          isOrgAdmin(organizationId) && 
+          isValidMembership(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().userId == existing().userId && 
+          incoming().organizationId == existing().organizationId
+        );
+
+        allow delete: if isOrgAdmin(organizationId);
+      }
+
+      // Brand Guidelines Versions
+      match /guidelines/{guidelineId} {
+        allow get: if isMember(organizationId) || isSuperAdmin();
+        allow list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isOrgAdmin(organizationId) && 
+          isValidId(guidelineId) && 
+          isValidGuideline(incoming()) && 
+          incoming().organizationId == organizationId;
+
+        allow update: if isOrgAdmin(organizationId) && 
+          isValidGuideline(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().organizationId == existing().organizationId;
+
+        allow delete: if isOrgAdmin(organizationId);
+      }
+
+      // Constitution Rules
+      match /rules/{ruleId} {
+        allow get: if isMember(organizationId) || isSuperAdmin();
+        allow list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isMember(organizationId) && 
+          isValidId(ruleId) && 
+          isValidConstitutionRule(incoming()) && 
+          incoming().organizationId == organizationId;
+
+        allow update: if isOrgAdmin(organizationId) && 
+          isValidConstitutionRule(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().organizationId == existing().organizationId;
+
+        allow delete: if isOrgAdmin(organizationId);
+      }
+
+      // Approved Claims (ClaimShield Evidence Vault)
+      match /claims/{claimId} {
+        allow get, list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isMember(organizationId) && 
+          isValidId(claimId) && 
+          isValidClaim(incoming()) && 
+          incoming().organizationId == organizationId &&
+          (isOrgAdmin(organizationId) || getMemberRole(organizationId) in ['org_admin', 'reviewer']);
+
+        allow update: if isMember(organizationId) && 
+          isValidClaim(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().organizationId == existing().organizationId &&
+          (isOrgAdmin(organizationId) || getMemberRole(organizationId) in ['org_admin', 'reviewer']);
+
+        allow delete: if isOrgAdmin(organizationId);
+      }
+
+      // Content Analyses
+      match /analyses/{analysisId} {
+        allow get, list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isMember(organizationId) && 
+          isValidId(analysisId) && 
+          isValidAnalysis(incoming()) && 
+          incoming().organizationId == organizationId && 
+          incoming().authorId == request.auth.uid;
+
+        allow update: if isMember(organizationId) && 
+          isValidAnalysis(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().organizationId == existing().organizationId && 
+          incoming().authorId == existing().authorId;
+
+        allow delete: if isOrgAdmin(organizationId) || (isMember(organizationId) && existing().authorId == request.auth.uid);
+      }
+
+      // Approval Requests (Risk-routed reviewer queue)
+      match /approvals/{approvalId} {
+        allow get, list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isMember(organizationId) && 
+          isValidId(approvalId) && 
+          isValidApprovalRequest(incoming()) && 
+          incoming().organizationId == organizationId;
+
+        allow update: if isMember(organizationId) && 
+          isValidApprovalRequest(incoming()) && 
+          incoming().id == existing().id && 
+          incoming().organizationId == existing().organizationId;
+
+        allow delete: if isOrgAdmin(organizationId);
+
+        // Actions & Comments subcollection
+        match /actions/{actionId} {
+          allow get, list: if isMember(organizationId) || isSuperAdmin();
+
+          allow create: if isMember(organizationId) && 
+            isValidId(actionId) && 
+            isValidApprovalAction(incoming()) && 
+            incoming().organizationId == organizationId && 
+            incoming().approvalId == approvalId && 
+            incoming().actorId == request.auth.uid;
+
+          allow update, delete: if isOrgAdmin(organizationId);
+        }
+      }
+
+      // Organization Governance Audit Logs (Immutable event stream)
+      match /auditLogs/{logId} {
+        allow get, list: if isMember(organizationId) || isSuperAdmin();
+
+        allow create: if isMember(organizationId) && 
+          isValidId(logId) && 
+          isValidAuditLogEntry(incoming()) && 
+          incoming().organizationId == organizationId;
+
+        allow update, delete: if false; // Audit logs are immutable
+      }
+    }
+  }
+}

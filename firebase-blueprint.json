@@ -1,0 +1,609 @@
+{
+  "entities": {
+    "Organization": {
+      "title": "Organization",
+      "description": "Tenant organization representing a company or brand team in BrandLint.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the organization",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the organization",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-friendly slug for the organization",
+          "minLength": 2,
+          "maxLength": 100,
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Firebase user UID of the creator who registered the organization",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the organization was created"
+        },
+        "plan": {
+          "type": "string",
+          "description": "Current subscription plan",
+          "enum": ["starter", "professional", "enterprise"]
+        }
+      },
+      "required": ["id", "name", "slug", "createdBy", "createdAt", "plan"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with tenancy and role mapping.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address",
+          "maxLength": 255
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar URL",
+          "maxLength": 500
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "ID of active organization user belongs to",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role within the organization",
+          "enum": ["super_admin", "org_admin", "reviewer", "creator"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp"
+        }
+      },
+      "required": ["id", "email", "organizationId", "role", "createdAt"]
+    },
+    "Membership": {
+      "title": "Membership",
+      "description": "User membership link within an organization.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document ID matching userId",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of member",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Member email address",
+          "maxLength": 255
+        },
+        "role": {
+          "type": "string",
+          "description": "Membership role",
+          "enum": ["super_admin", "org_admin", "reviewer", "creator"]
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Membership join timestamp"
+        }
+      },
+      "required": ["id", "organizationId", "userId", "userEmail", "role", "joinedAt"]
+    },
+    "GuidelineVersion": {
+      "title": "GuidelineVersion",
+      "description": "Uploaded PDF/DOCX brand guideline document tracking version and extraction status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Guideline version ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Original file name",
+          "maxLength": 255
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME type or extension",
+          "enum": ["pdf", "docx"]
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "File size in bytes"
+        },
+        "version": {
+          "type": "number",
+          "description": "Sequential guideline version integer"
+        },
+        "uploadedBy": {
+          "type": "string",
+          "description": "UID of the uploader",
+          "maxLength": 128
+        },
+        "uploadedByEmail": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "uploadedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Upload timestamp"
+        },
+        "extractedRuleCount": {
+          "type": "number",
+          "description": "Count of AI proposed rules"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["processing", "completed", "error"]
+        }
+      },
+      "required": ["id", "organizationId", "filename", "fileType", "version", "uploadedBy", "uploadedAt", "status"]
+    },
+    "ConstitutionRule": {
+      "title": "ConstitutionRule",
+      "description": "Codified rule extracted from guidelines or manually defined, requiring Org Admin approval.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Rule document ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "guidelineId": {
+          "type": "string",
+          "description": "Originating guideline document ID if extracted",
+          "maxLength": 128
+        },
+        "version": {
+          "type": "number",
+          "description": "Associated guideline version"
+        },
+        "title": {
+          "type": "string",
+          "description": "Summary rule title",
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Rule category",
+          "enum": [
+            "tone",
+            "messaging",
+            "terminology",
+            "grammar",
+            "visual identity",
+            "colour",
+            "logo",
+            "typography",
+            "disclaimers",
+            "prohibited statements"
+          ]
+        },
+        "ruleText": {
+          "type": "string",
+          "description": "Detailed rule policy",
+          "maxLength": 4000
+        },
+        "sourcePage": {
+          "type": "string",
+          "description": "Page or section reference in the guideline source",
+          "maxLength": 100
+        },
+        "confidence": {
+          "type": "number",
+          "description": "Confidence percentage score 0-100"
+        },
+        "status": {
+          "type": "string",
+          "description": "Approval status (pending until Org Admin approves)",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "organizationId", "title", "category", "ruleText", "status", "createdAt", "updatedAt"]
+    },
+    "ApprovedClaim": {
+      "title": "ApprovedClaim",
+      "description": "Organisation-specific approved claim proof database document.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Claim ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "claim": {
+          "type": "string",
+          "description": "Approved factual or statistical statement",
+          "minLength": 5,
+          "maxLength": 1000
+        },
+        "sourceUrl": {
+          "type": "string",
+          "description": "External audit or benchmark URL",
+          "maxLength": 500
+        },
+        "sourceDocument": {
+          "type": "string",
+          "description": "Internal whitepaper, SOC 2, or certification document reference",
+          "maxLength": 200
+        },
+        "approvalDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date certified by legal or brand lead"
+        },
+        "expiryDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date certification expires"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Person or department responsible for evidence upkeep",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "description": "Claim domain",
+          "enum": ["performance", "financial", "compliance", "security", "customer", "award"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "expired"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "organizationId", "claim", "approvalDate", "expiryDate", "owner", "status", "createdAt", "updatedAt"]
+    },
+    "ContentAnalysis": {
+      "title": "ContentAnalysis",
+      "description": "Linter run record on marketing copy with issue detections and score.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Analysis ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Author UID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Content title or campaign label",
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "description": "Analysis or approval status",
+          "enum": ["draft", "flagged", "pending_review", "approved", "rejected"]
+        },
+        "score": {
+          "type": "number",
+          "description": "Brand consistency score 0-100"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "organizationId", "authorId", "title", "status", "createdAt"]
+    },
+    "ApprovalRequest": {
+      "title": "ApprovalRequest",
+      "description": "Content publication request routed to reviewers based on risk level.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Approval request ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "Parent organization ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "contentType": {
+          "type": "string",
+          "enum": ["caption", "ad", "email", "blog"]
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 25000
+        },
+        "authorId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "authorEmail": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "authorName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "riskLevel": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "brandScore": {
+          "type": "number"
+        },
+        "violationsCount": {
+          "type": "number"
+        },
+        "claimsStatus": {
+          "type": "string",
+          "enum": ["all_verified", "contains_unsupported", "contains_expired", "none"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "changes_requested"]
+        },
+        "assignedReviewerRole": {
+          "type": "string",
+          "enum": ["reviewer", "org_admin", "super_admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "organizationId", "title", "content", "authorId", "riskLevel", "brandScore", "status", "createdAt", "updatedAt"]
+    },
+    "ApprovalAction": {
+      "title": "ApprovalAction",
+      "description": "Reviewer sign-off, rejection, change-request, or comment on an approval request.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "approvalId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "organizationId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "actorId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "actorEmail": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "actorName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "actorRole": {
+          "type": "string",
+          "enum": ["super_admin", "org_admin", "reviewer", "creator"]
+        },
+        "action": {
+          "type": "string",
+          "enum": ["submitted", "approved", "rejected", "requested_changes", "commented"]
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "approvalId", "organizationId", "actorId", "action", "timestamp"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Immutable audit trail event record of governance actions across the organization.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "organizationId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "entityType": {
+          "type": "string",
+          "enum": ["approval", "guideline", "claim", "rule", "content"]
+        },
+        "entityId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "actorId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "actorEmail": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "actorName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "actorRole": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "organizationId", "entityType", "entityId", "action", "actorId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/organizations/{organizationId}": {
+      "schema": "Organization",
+      "description": "Tenant organization root documents"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Private user profile and organization membership reference"
+    },
+    "/organizations/{organizationId}/memberships/{membershipId}": {
+      "schema": "Membership",
+      "description": "Organization membership and role mappings"
+    },
+    "/organizations/{organizationId}/guidelines/{guidelineId}": {
+      "schema": "GuidelineVersion",
+      "description": "Uploaded PDF/DOCX brand guideline versions"
+    },
+    "/organizations/{organizationId}/rules/{ruleId}": {
+      "schema": "ConstitutionRule",
+      "description": "Proposed and approved Brand Constitution rules"
+    },
+    "/organizations/{organizationId}/claims/{claimId}": {
+      "schema": "ApprovedClaim",
+      "description": "Approved evidentiary claims database"
+    },
+    "/organizations/{organizationId}/analyses/{analysisId}": {
+      "schema": "ContentAnalysis",
+      "description": "Content inspection and lint runs"
+    },
+    "/organizations/{organizationId}/approvals/{approvalId}": {
+      "schema": "ApprovalRequest",
+      "description": "Risk-routed publication approval queue requests"
+    },
+    "/organizations/{organizationId}/approvals/{approvalId}/actions/{actionId}": {
+      "schema": "ApprovalAction",
+      "description": "Review actions, sign-offs, rejections, change-requests, and comments"
+    },
+    "/organizations/{organizationId}/auditLogs/{logId}": {
+      "schema": "AuditLogEntry",
+      "description": "Immutable organization governance audit log stream"
+    }
+  }
+}
